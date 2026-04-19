@@ -89,5 +89,6 @@ export function EmailDialog({ onEmailSaved }: EmailDialogProps) {
       </DialogContent>
     </Dialog>
   )
+
 }
 
