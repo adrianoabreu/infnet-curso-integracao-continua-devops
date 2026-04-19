@@ -8,6 +8,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/prometheus.yaml
 
 echo ">>> Aguardando Pods (timeout 180s)..."
 kubectl rollout status deployment/guia-app -n default --timeout=180s
