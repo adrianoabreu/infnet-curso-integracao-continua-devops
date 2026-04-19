@@ -27,7 +27,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,42 +37,53 @@ jobs:
         with:
           version: v1.29.0
 
-      - name: Configurar acesso ao cluster
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.kube"
-          if [[ -z "$KUBE_CONFIG" ]]; then
-            echo "Defina o secret KUBE_CONFIG no repositório (Settings → Secrets → Actions)."
-            exit 1
-          fi
-          echo "$KUBE_CONFIG" > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-          kubectl version --client
-          kubectl cluster-info || true
+      #- name: Configurar acesso ao cluster
+      #  env:
+      #    KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      #  run: |
+      #    set -euo pipefail
+      #    mkdir -p "$HOME/.kube"
+      #    if [[ -z "$KUBE_CONFIG" ]]; then
+      #      echo "Defina o secret KUBE_CONFIG no repositório (Settings → Secrets → Actions)."
+      #      exit 1
+      #    fi
+      #    echo "$KUBE_CONFIG" > "$HOME/.kube/config"
+      #    chmod 600 "$HOME/.kube/config"
+      #    kubectl version --client
+      #    kubectl cluster-info || true
 
       # Se preferir secret em base64, comente o bloco acima e use:
-      # - name: Configurar kubeconfig (base64)
-      #   run: |
-      #     mkdir -p "$HOME/.kube"
-      #     echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
-      #     chmod 600 "$HOME/.kube/config"
+      - name: Configurar kubeconfig (base64)
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.kube" | Out-Null
+          @"
+          "${{ secrets.KUBE_CONFIG }}" "@ | Set-Content -Path "$env:USERPROFILE\.kube\config" -NoNewline
+          "KUBECONFIG=$env:USERPROFILE\.kube\config" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Verificar contexto
+        shell: powershell
+        run: |
+          kubectl config current-context
+          kubectl config view --minify
+          kubectl cluster-info
+          kubectl get nodes
+
+      
       - name: Aplicar Kubernetes
+        shell: powershell
         working-directory: ${{ github.workspace }}
         run: |
-          set -euo pipefail
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/prometheus.yaml
 
       - name: Aguardar rollout
+        shell: powershell
         run: |
-          set -euo pipefail
-          kubectl rollout status deployment/guia-app -n "$K8S_NAMESPACE" --timeout=300s
-          kubectl rollout status deployment/prometheus -n "$K8S_NAMESPACE" --timeout=300s
-          kubectl rollout status deployment/grafana -n "$K8S_NAMESPACE" --timeout=300s
-          kubectl get pods,svc -n "$K8S_NAMESPACE"
+          kubectl rollout status deployment/guia-app -n $env:K8S_NAMESPACE --timeout=300s
+          kubectl rollout status deployment/prometheus -n $env:K8S_NAMESPACE --timeout=300s
+          kubectl rollout status deployment/grafana -n $env:K8S_NAMESPACE --timeout=300s
+          kubectl get pods,svc -n $env:K8S_NAMESPACE
 
   # ---------------------------------------------------------------------------
   # Job opcional — descomente o bloco "needs" em deploy se quiser build antes.
