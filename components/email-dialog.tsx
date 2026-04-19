@@ -18,6 +18,7 @@ interface EmailDialogProps {
   onEmailSaved: (email: string) => void
 }
 
+
 export function EmailDialog({ onEmailSaved }: EmailDialogProps) {
   const [email, setEmail] = useState("")
   const [open, setOpen] = useState(false)
